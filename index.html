@@ -1057,13 +1057,15 @@
     function calculateRanking(matchList = matches) {
       const players = {};
       PLAYERS.forEach(p => {
-        players[p] = { played: 0, wins: 0, totalPenalty: 0, points: 0 };
+        players[p] = { played: 0, wins: 0, points: 0 };
       });
 
+      // Process each match - applying penalty incrementally like the original script
       matchList.forEach(match => {
         const numPlayers = match.players.length;
         const weight = WEIGHTS[numPlayers] || 0;
 
+        // First, count participation and wins
         match.players.forEach(player => {
           if (players[player]) {
             players[player].played++;
@@ -1073,18 +1075,16 @@
           }
         });
 
+        // Apply penalty to loser (incrementally, divided by current played + K)
         if (players[match.loser]) {
-          players[match.loser].totalPenalty += PENALTY * weight;
+          players[match.loser].points -= (PENALTY * weight) / (players[match.loser].played + K);
         }
       });
 
-      // Calculate final points
+      // Add victory points at the end
       Object.keys(players).forEach(player => {
         const data = players[player];
-        if (data.played > 0) {
-          const numerator = (data.wins * AVG_WEIGHT) - data.totalPenalty;
-          data.points = numerator / (data.played + K);
-        }
+        data.points += (data.wins * AVG_WEIGHT) / (data.played + K);
       });
 
       // Sort by points
