@@ -1003,6 +1003,43 @@
     // Load matches from localStorage
     let matches = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
+    // Load CSV file on startup
+    async function loadCSVFromFile() {
+      try {
+        const response = await fetch('Partidas.csv');
+        if (!response.ok) return;
+        
+        const text = await response.text();
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        // Start from line 2 (index 1) - skip header
+        const newMatches = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          // Handle quoted fields
+          const match = line.match(/^"?([^"]*)"?,([^,]+),([^,\r\n]+)/);
+          if (match) {
+            const players = match[1].split(',').map(p => p.trim());
+            const winner = match[2].trim();
+            const loser = match[3].trim();
+            
+            if (players.length >= 3 && winner && loser) {
+              newMatches.push({ players, winner, loser });
+            }
+          }
+        }
+
+        if (newMatches.length > 0) {
+          matches = newMatches;
+          saveMatches();
+          renderAll();
+          console.log(`Carregadas ${newMatches.length} partidas do CSV`);
+        }
+      } catch (err) {
+        console.log('CSV não encontrado ou erro ao carregar:', err);
+      }
+    }
+
     // ==================== UTILITY FUNCTIONS ====================
     function saveMatches() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(matches));
@@ -1571,9 +1608,10 @@
     }
 
     // ==================== INIT ====================
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       renderPlayerSelection();
       setupTabs();
+      await loadCSVFromFile(); // Load CSV first
       renderAll();
 
       document.getElementById('registerBtn').addEventListener('click', registerMatch);
